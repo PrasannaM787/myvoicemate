@@ -2,42 +2,41 @@ from flask import Flask, request, jsonify
 import speech_recognition as sr
 import os
 from datetime import datetime
-import requests
-import urllib.parse
+from groq import Groq
 
 app = Flask(__name__)
 JOURNAL_FILE = '/tmp/daily_journal.txt'
 
-def free_llm_summary(text):
-    """Uses a completely free, keyless open LLM endpoint for empathetic summarization"""
-    prompt = f"""
-    You are an empathetic, highly intelligent journaling companion. 
-    The user recorded these voice notes today:
+def top_tier_summary(text):
+    """Uses Meta's Llama 3 via Groq for production-grade, highly empathetic summaries."""
+    api_key = os.environ.get("GROQ_API_KEY")
     
-    {text}
-    
-    Please write a warm, conversational summary of their day. 
-    Speak directly to them in the second person ("You...").
-    Acknowledge their tasks, validate their feelings, and offer one gentle, encouraging sentence at the end for their mental well-being.
-    Keep it concise and friendly. Do not use robotic phrases.
-    """
+    # Failsafe if the API key isn't in Vercel
+    if not api_key:
+        return "System Alert: Please add your GROQ_API_KEY to your Vercel Environment Variables to unlock the AI."
+
+    client = Groq(api_key=api_key)
     
     try:
-        # Encode the prompt for the URL
-        encoded_prompt = urllib.parse.quote(prompt)
-        # Using Pollinations open API - strictly free, no keys required, allows server IPs
-        url = f"https://text.pollinations.ai/{encoded_prompt}?model=mistral"
+        chat_completion = client.chat.completions.create(
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You are a warm, highly intelligent, and empathetic personal journaling companion. Summarize the user's daily voice notes. Speak directly to them using 'You'. Acknowledge their hard work, validate their stress, and offer one gentle, encouraging thought at the end. Keep it human, concise, and professional."
+                },
+                {
+                    "role": "user",
+                    "content": f"Here are my voice notes for today: {text}"
+                }
+            ],
+            model="llama3-8b-8192", # Top open-source model
+            temperature=0.6,
+            max_tokens=250
+        )
+        return chat_completion.choices[0].message.content
         
-        # We give it 15 seconds to respond before timing out
-        response = requests.get(url, timeout=15)
-        
-        if response.status_code == 200:
-            return response.text
-        else:
-            return f"Error {response.status_code}: The open AI engine is overloaded right now. Please try summarizing again in a minute!"
-            
     except Exception as e:
-        return f"Summary Engine Error: {str(e)}"
+        return "I captured your notes perfectly, but I'm having a little trouble thinking right now. Your data is safe!"
 
 @app.route('/api/upload', methods=['POST'])
 def upload_audio():
@@ -65,12 +64,13 @@ def upload_audio():
 @app.route('/api/summary', methods=['GET'])
 def get_summary():
     if not os.path.exists(JOURNAL_FILE):
-        return jsonify({'summary': "No notes to summarize yet! Hold the Start button to begin.", 'date': datetime.now().strftime("%A, %b %d")})
+        return jsonify({'summary': "Your mind is clear today! Hold the Start button to log a thought.", 'date': datetime.now().strftime("%A, %b %d")})
         
     with open(JOURNAL_FILE, 'r') as f:
         full_text = f.read()
         
-    summary_text = free_llm_summary(full_text)
+    # Call Llama 3
+    summary_text = top_tier_summary(full_text)
     
     return jsonify({
         'summary': summary_text,
