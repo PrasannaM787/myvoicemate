@@ -53,22 +53,25 @@ export default function Home() {
         const formData = new FormData();
         formData.append('file', wavBlob, 'audio.wav');
         
-        const res = await fetch('/api/upload', { method: 'POST', body: formData });
-        const data = await res.json();
-        
-        if (data.text) {
-           const timeNow = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-           const newLog = `[${timeNow}] ${data.text}`;
-           
-           // Update state and save permanently to browser storage
-           setLogs(prev => {
-             const updatedLogs = [...prev, newLog];
-             localStorage.setItem('voicemate_logs', JSON.stringify(updatedLogs));
-             return updatedLogs;
-           });
-           setStatus('Saved successfully.');
-        } else {
-           setStatus('Failed to transcribe.');
+        try {
+          const res = await fetch('/api/upload', { method: 'POST', body: formData });
+          const data = await res.json();
+          
+          if (data.text) {
+             const timeNow = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+             const newLog = `[${timeNow}] ${data.text}`;
+             
+             setLogs(prev => {
+               const updatedLogs = [...prev, newLog];
+               localStorage.setItem('voicemate_logs', JSON.stringify(updatedLogs));
+               return updatedLogs;
+             });
+             setStatus('Saved successfully.');
+          } else {
+             setStatus(`Transcription Error: ${data.error || 'Unknown'}`);
+          }
+        } catch (err) {
+          setStatus('Failed to reach Vercel server.');
         }
       };
       
@@ -96,7 +99,6 @@ export default function Home() {
 
     setStatus('AI is writing your summary...');
     try {
-      // Send the browser's saved logs directly to Python
       const res = await fetch('/api/summary', {
         method: 'POST',
         headers: {
@@ -129,7 +131,6 @@ export default function Home() {
     }
   };
 
-  // WAV Encoder
   function audioBufferToWav(buffer) {
     const numOfChan = buffer.numberOfChannels, length = buffer.length * numOfChan * 2 + 44;
     const out = new ArrayBuffer(length), view = new DataView(out), channels = [];
@@ -150,7 +151,6 @@ export default function Home() {
     function setUint32(data) { view.setUint32(pos, data, true); pos += 4; }
   }
 
-  // --- SCREEN 1: LOGIN ---
   if (!isLogged) {
     return (
       <div style={{ fontFamily: 'sans-serif', backgroundColor: '#111', color: '#fff', height: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
@@ -173,7 +173,6 @@ export default function Home() {
     );
   }
 
-  // --- SCREEN 2: MAIN DASHBOARD ---
   return (
     <div style={{ fontFamily: 'sans-serif', padding: '20px', backgroundColor: '#111', color: '#fff', minHeight: '100vh', display: 'flex', flexDirection: 'column', maxWidth: '800px', margin: '0 auto' }}>
       
@@ -207,7 +206,6 @@ export default function Home() {
         {logs.length === 0 && <p style={{color: '#555', fontStyle: 'italic'}}>Your mind is clear. Record a thought above.</p>}
       </div>
 
-      {/* Buy Me A Coffee Button */}
       <div style={{ textAlign: 'center', marginTop: '40px', paddingTop: '20px', borderTop: '1px solid #333' }}>
         <a href="https://www.buymeacoffee.com/YOUR_USERNAME" target="_blank" rel="noreferrer">
           <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style={{ height: '45px', borderRadius: '8px' }} />
