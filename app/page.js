@@ -12,7 +12,6 @@ export default function Home() {
   const mediaRecorder = useRef(null);
   const audioChunks = useRef([]);
 
-  // Load saved data when the app opens
   useEffect(() => {
     const storedName = localStorage.getItem('voicemate_user');
     const storedLogs = localStorage.getItem('voicemate_logs');
