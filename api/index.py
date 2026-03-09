@@ -14,7 +14,7 @@ def top_tier_summary(text):
         return "System Alert: I cannot find the GROQ_API_KEY in Vercel Environment Variables."
 
     try:
-        client = Groq(api_key=api_key, base_url="https://api.groq.com/openai/v1")
+        client = Groq(api_key=api_key, base_url="https://api.groq.com")
         chat_completion = client.chat.completions.create(
             messages=[
                 {
