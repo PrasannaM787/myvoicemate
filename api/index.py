@@ -1,35 +1,30 @@
 from flask import Flask, request, jsonify
 import speech_recognition as sr
 import os
-import re
 from datetime import datetime
-from collections import Counter
+from duckduckgo_search import DDGS
 
 app = Flask(__name__)
 JOURNAL_FILE = '/tmp/daily_journal.txt'
 
-def pure_code_summary(text):
-    """Summarizes text using mathematical word frequency"""
-    words = re.findall(r'\w+', text.lower())
-    if not words: return "No entries yet."
+def free_llm_summary(text):
+    """Uses DuckDuckGo's free AI chat library for empathetic summarization"""
+    prompt = f"""
+    You are an empathetic, highly intelligent journaling assistant. 
+    The user recorded these voice notes today:
     
-    # Calculate word weights
-    freq = Counter(words)
-    max_freq = max(freq.values())
-    for word in freq:
-        freq[word] = freq[word] / max_freq
-
-    # Score sentences
-    sentences = re.split(r'(?<=[.!?]) +', text)
-    sentence_scores = {}
-    for sent in sentences:
-        for word in re.findall(r'\w+', sent.lower()):
-            if word in freq:
-                sentence_scores[sent] = sentence_scores.get(sent, 0) + freq[word]
-                
-    # Extract the top 2 sentences
-    sorted_sentences = sorted(sentence_scores, key=sentence_scores.get, reverse=True)
-    return ' '.join(sorted_sentences[:2])
+    {text}
+    
+    Please write a warm, conversational summary of their day. 
+    Acknowledge their tasks, validate their feelings, and offer one gentle, encouraging sentence at the end for their mental well-being.
+    Keep it concise, friendly, and speak directly to them (e.g., "It sounds like you had a busy morning...").
+    """
+    try:
+        # Taps into free LLMs (GPT-4o-mini/Claude) with zero API keys
+        result = DDGS().chat(prompt, model="gpt-4o-mini")
+        return result
+    except Exception as e:
+        return "I heard everything you said today, but my AI engine is currently taking a quick rest. Your notes are safely saved below!"
 
 @app.route('/api/upload', methods=['POST'])
 def upload_audio():
@@ -44,10 +39,10 @@ def upload_audio():
     try:
         with sr.AudioFile(temp_path) as source:
             audio_data = recognizer.record(source)
-            # Uses public, keyless Google Speech endpoint
             text = recognizer.recognize_google(audio_data)
             
             timestamp = datetime.now().strftime("%I:%M %p")
+            # Save to temporary server file for the Python summary engine
             with open(JOURNAL_FILE, 'a') as f:
                 f.write(f"[{timestamp}] {text}. \n")
                 
@@ -58,19 +53,18 @@ def upload_audio():
 @app.route('/api/summary', methods=['GET'])
 def get_summary():
     if not os.path.exists(JOURNAL_FILE):
-        return jsonify({'summary': "No data to summarize yet.", 'date': datetime.now().strftime("%A, %b %d")})
+        return jsonify({'summary': "No notes to summarize yet! Hold the Start button to begin.", 'date': datetime.now().strftime("%A, %b %d")})
         
     with open(JOURNAL_FILE, 'r') as f:
         full_text = f.read()
         
-    summary_text = pure_code_summary(full_text)
+    # Call the new Free LLM
+    summary_text = free_llm_summary(full_text)
     
     return jsonify({
         'summary': summary_text,
-        'date': datetime.now().strftime("%A, %b %d at %I:%M %p"),
-        'raw_log': full_text
+        'date': datetime.now().strftime("%A, %B %d, %Y at %I:%M %p"),
     })
 
-# Required for Vercel serverless functions
 if __name__ == '__main__':
     app.run(debug=True)
