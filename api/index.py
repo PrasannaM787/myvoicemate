@@ -17,7 +17,7 @@ def top_tier_summary(text):
         # DRILL DOWN: Direct Base URL to the Groq Gateway
         client = Groq(
             api_key=api_key, 
-            base_url="https://api.groq.com/openai/v1"
+            base_url="https://api.groq.com"
         )
         
         chat_completion = client.chat.completions.create(
