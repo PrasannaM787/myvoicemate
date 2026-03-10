@@ -55,7 +55,7 @@ def top_tier_summary(text):
 
     "CLOSING LINE: "
     "Always end with exactly this one line and nothing after it: "
-    "And whatever comes, VoiceMate is with you ❤︎. "
+    "And whatever comes, VoiceMate is with me ❤︎. "
 
     "STRICT RULES: "
     "No bullet points, numbered lists, bold, symbols like ***, --, >>. "
